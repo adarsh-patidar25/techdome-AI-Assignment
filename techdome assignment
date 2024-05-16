@@ -1,0 +1,73 @@
+#pip install nltk
+#pip install scikit-learn
+#pip install textblob
+
+import re
+from collections import Counter
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import LatentDirichletAllocation
+
+# Function to clean up articles
+def clean_article(article):
+    # Remove punctuation
+    article = re.sub(r'[^\w\s]', '', article)
+    # Tokenize the article
+    tokens = word_tokenize(article.lower())
+    # Remove stopwords
+    stop_words = set(stopwords.words('english'))
+    tokens = [token for token in tokens if token not in stop_words]
+    return tokens
+
+# Function to check the mood of an article
+def check_mood(article):
+    sid = SentimentIntensityAnalyzer()
+    sentiment_scores = sid.polarity_scores(article)
+    if sentiment_scores['compound'] > 0:
+        return 'Happy'
+    elif sentiment_scores['compound'] < 0:
+        return 'Sad'
+    else:
+        return 'Neutral'
+
+# Function to find connections/themes
+def find_connections(articles):
+    tfidf_vectorizer = TfidfVectorizer()
+    tfidf_matrix = tfidf_vectorizer.fit_transform(articles)
+    lda = LatentDirichletAllocation(n_components=3, random_state=42)
+    lda.fit(tfidf_matrix)
+    return lda, tfidf_vectorizer
+
+# Sample articles
+articles = [
+    "Tech company X releases new smartphone with advanced features.",
+    "Stock market crashes, investors worried about the future what will going to happen.",
+    "Bitcoin's dominance is currently 54.16%, an increase of 0.49% over the day.",
+    "Social media platform faces backlash for privacy issues."
+]
+
+# Clean up articles
+cleaned_articles = [' '.join(clean_article(article)) for article in articles]
+
+# Check the mood of each article
+moods = [check_mood(article) for article in articles]
+
+# Find connections/themes
+lda_model, tfidf_vectorizer = find_connections(cleaned_articles)
+
+print("Cleaned Articles:")
+for idx, article in enumerate(cleaned_articles):
+    print(f"Article {idx+1}: {article}")
+
+print("\nMood of Articles:")
+for idx, mood in enumerate(moods):
+    print(f"Article {idx+1}: {mood}")
+
+print("\nTopics/Themes:")
+for idx, topic in enumerate(lda_model.components_):
+    print(f"Topic {idx+1}:")
+    word_count = Counter({word: topic[word_index] for word, word_index in tfidf_vectorizer.vocabulary_.items()})
+    print(word_count.most_common(5))
+
